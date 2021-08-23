@@ -350,7 +350,7 @@ impl<'a> DeployData<'a> {
         let profile_path = self.get_profile_path()?;
 
         let sudo: Option<String> = match self.merged_settings.user {
-            Some(ref user) if user != &ssh_user => Some(format!("sudo -u {}", user)),
+            Some(ref user) if user != &ssh_user => Some(format!("doas -u {}", user)),
             _ => None,
         };
 
