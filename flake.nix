@@ -8,10 +8,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    naersk = {
-      url = "github:nmattia/naersk/master";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     utils.url = "github:numtide/flake-utils";
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -19,24 +15,28 @@
     };
   };
 
-  outputs = { self, nixpkgs, utils, naersk, ... }:
+  outputs = { self, nixpkgs, utils, ... }:
   {
     overlay = final: prev:
     let
-      naersk-lib = final.callPackage naersk { };
       system = final.system;
-      isDarwin = final.lib.strings.hasSuffix "-darwin" system;
-      darwinOptions = final.lib.optionalAttrs isDarwin {
-        nativeBuildInputs = [
-          final.darwin.apple_sdk.frameworks.SystemConfiguration
+      darwinOptions = final.lib.optionalAttrs final.stdenv.isDarwin {
+        buildInputs = with final.darwin.apple_sdk.frameworks; [
+          SystemConfiguration
+          CoreServices
         ];
       };
     in
     {
       deploy-rs = {
 
-        deploy-rs = naersk-lib.buildPackage (darwinOptions // {
-          root = ./.;
+        deploy-rs = final.rustPlatform.buildRustPackage (darwinOptions // {
+          pname = "deploy-rs";
+          version = "0.1.0";
+
+          src = ./.;
+
+          cargoLock.lockFile = ./Cargo.lock;
         }) // { meta.description = "A Simple multi-profile Nix-flake deploy tool"; };
 
         lib = rec {
@@ -127,7 +127,7 @@
       };
     };
   } //
-    utils.lib.eachDefaultSystem (system:
+    utils.lib.eachSystem (utils.lib.defaultSystems ++ ["aarch64-darwin"]) (system:
       let
         pkgs = import nixpkgs { inherit system; overlays = [ self.overlay ]; };
       in
